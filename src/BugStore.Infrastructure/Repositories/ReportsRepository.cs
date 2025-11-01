@@ -6,6 +6,7 @@ using BugStore.Infrastructure.Data;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Linq;
 
 namespace BugStore.Infrastructure.Repositories
 {
@@ -14,71 +15,69 @@ namespace BugStore.Infrastructure.Repositories
         public ReportsRepository(AppDbContext context)
             : base(context) { }
 
+        //intemediario para pegar o total count junto com os dados paginados
+        private class BestCustomerDtoInternal
+        {
+            public string CustomerName { get; set; }
+            public string CustomerEmail { get; set; }
+            public long TotalOrders { get; set; }
+            public decimal SpentAmount { get; set; }
+            public long TotalCount { get; set; }
+        }; 
+
         public async Task<PaginatedList<BestCustomerDto>> GetBestCustomerAsync(BestCustomerParameters parameters, CancellationToken cancellationToken = default)
         {
-            var connection = _context.Database.GetDbConnection();
+        var connection = _context.Database.GetDbConnection();
 
             if (connection.State != ConnectionState.Open)
                 await connection.OpenAsync(cancellationToken);
 
             var sql = @"
-                        SELECT ""CustomerName"", ""CustomerEmail"", ""TotalOrders"", ""SpentAmount""
-                        FROM (
+                        WITH CustomerSpending AS (
                             SELECT 
+                                c.""Id"",
                                 c.""Name"" AS ""CustomerName"",
                                 c.""Email"" AS ""CustomerEmail"",
-                                CAST(COUNT(DISTINCT o.""Id"") AS INTEGER) AS ""TotalOrders"",
-                                CAST(SUM(ol.""Quantity"" * p.""Price"") AS NUMERIC) AS ""SpentAmount""
+                                COUNT(DISTINCT o.""Id"") AS ""TotalOrders"",
+                                SUM(ol.""Total"") AS ""SpentAmount""
                             FROM ""Orders"" o
-                            INNER JOIN ""Customers"" c ON c.""Id"" = o.""CustomerId""
-                            INNER JOIN ""OrderLines"" ol ON ol.""OrderId"" = o.""Id""
-                            INNER JOIN ""Products"" p ON p.""Id"" = ol.""ProductId""
+                            JOIN ""Customers"" c ON c.""Id"" = o.""CustomerId""
+                            JOIN ""OrderLines"" ol ON ol.""OrderId"" = o.""Id""
                             GROUP BY c.""Id"", c.""Name"", c.""Email""
+                        ),
+                        Ranked AS (
+                            SELECT 
+                                *,
+                                COUNT(*) OVER() AS ""TotalCount""
+                            FROM CustomerSpending
                             ORDER BY ""SpentAmount"" DESC
                             LIMIT @Top
-                        ) AS Ranked
+                        )
+                        SELECT ""CustomerName"", ""CustomerEmail"", ""TotalOrders"", ""SpentAmount"", ""TotalCount""
+                        FROM Ranked
                         LIMIT @PageSize OFFSET @Offset;
-
-                        SELECT COUNT(*) 
-                        FROM (
-                            SELECT 1
-                            FROM (
-                                SELECT c.""Id"",
-                                       CAST(SUM(ol.""Quantity"" * p.""Price"") AS NUMERIC) AS ""SpentAmount""
-                                FROM ""Orders"" o
-                                INNER JOIN ""Customers"" c ON c.""Id"" = o.""CustomerId""
-                                INNER JOIN ""OrderLines"" ol ON ol.""OrderId"" = o.""Id""
-                                INNER JOIN ""Products"" p ON p.""Id"" = ol.""ProductId""
-                                GROUP BY c.""Id""
-                                ORDER BY ""SpentAmount"" DESC
-                                LIMIT @Top
-                            ) AS T
-                        ) AS CountTable;
                     ";
 
             var offset = (parameters.PageNumber - 1) * parameters.PageSize;
 
-            using var multi = await connection.QueryMultipleAsync(sql, new
+            var result = (await connection.QueryAsync<BestCustomerDtoInternal>(sql, new
             {
                 Top = parameters.Top,
                 Offset = offset,
                 PageSize = parameters.PageSize
-            },
-             commandTimeout: 300);
+            }, commandTimeout: 60)).ToList();
 
-            var rawItems = (await multi.ReadAsync<BestCustomerDto>()).ToList();
-            var items = rawItems.Select(r => new BestCustomerDto(
+            var totalCount = result.FirstOrDefault()?.TotalCount ?? 0;
+
+            var items = result.Select(r => new BestCustomerDto(
                 r.CustomerName,
                 r.CustomerEmail,
                 (int)r.TotalOrders,
-                (decimal)r.SpentAmount
+                r.SpentAmount
             )).ToList();
 
-            var totalCount = await multi.ReadSingleAsync<int>();
-
             return PaginatedList<BestCustomerDto>.ToPagedList(
-                items, totalCount, parameters.PageNumber, parameters.PageSize);
-
+                items, (int)totalCount, parameters.PageNumber, parameters.PageSize);
         }
 
         public async Task<PaginatedList<RevenueByPeriodDto>> GetOrdersByPeriodAsync(RevenueByPeriodParameters parameters, CancellationToken cancellationToken)
@@ -138,3 +137,7 @@ namespace BugStore.Infrastructure.Repositories
         }
     }
 }
+
+
+
+
