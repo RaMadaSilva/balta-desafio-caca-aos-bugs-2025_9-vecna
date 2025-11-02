@@ -17,7 +17,7 @@ Neste processo eu aprendi:
 - ✅ Realizar um fork do repositório do desafio
 - ✅ [Fazer o download do banco de testes](https://baltaio.blob.core.windows.net/temp/desafio-caca-aos-bugs-2025/database.zip)
 - ✅ Otimizar os métodos (Principalmente os de leitura)
-- [ ] Obter uma resposta de leitura em menos de 200ms
+- ✅ Obter uma resposta de leitura em menos de 200ms
 
 ## Sobre o Caça aos Bugs
 O desafio **Caça aos Bugs 2025** consiste em encontrar bugs e sugerir melhorias para aplicações em cenários reais. Durante os 9 desafios desta jornada, os participantes são submetidos ao aprendizado e prática de Depuração de Aplicações, Testes de Unidade, Testes E2E, Melhorias de UI, Melhorias de Performance, Deployment e Infraestrutura,
