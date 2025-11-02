@@ -1,4 +1,6 @@
-﻿using BugStore.Application.Features.Customers.CreateCustomer;
+﻿using BugStore.Application.Behavior;
+using BugStore.Application.Contracts;
+using BugStore.Application.Features.Customers.CreateCustomer;
 using BugStore.Application.Features.Customers.CustomerSearch;
 using BugStore.Application.Features.Customers.DeleteCustomer;
 using BugStore.Application.Features.Customers.GetByIdCustomer;
@@ -16,10 +18,13 @@ using BugStore.Application.Features.Products.UpdateProduct;
 using BugStore.Application.Features.Reports.BestCustomers;
 using BugStore.Application.Features.Reports.RevenueByPeriod;
 using BugStore.Domain.Contracts.IRepositories;
+using BugStore.Infrastructure.Caching;
 using BugStore.Infrastructure.Data;
 using BugStore.Infrastructure.Repositories;
 using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 namespace BugStore.Api.Extensions; 
 
@@ -37,6 +42,25 @@ public static class Registers
         }); 
         return services;
 
+    }
+
+    public static IServiceCollection AddRedis(this IServiceCollection services, IConfiguration configuration)
+    {
+        var redisConnection = configuration.GetConnectionString("Redis")
+    ?? configuration["Redis:ConnectionString"]
+    ?? "localhost:6379,abortConnect=false";
+
+        // registra o multiplexer como singleton
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            var options = ConfigurationOptions.Parse(redisConnection);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
+
+        services.AddSingleton<ICacheService, RedisCacheService>();
+
+        return services;
     }
 
     public static IServiceCollection AddDependencyInjection(this IServiceCollection services)
@@ -81,6 +105,24 @@ public static class Registers
         // Registrar Handlers - Reports
         services.AddScoped<RevenueByPeriodHandler>();
         services.AddScoped<BestCustomerHandler>();
+
+        return services;
+    }
+    public static IServiceCollection AddMediatRServices(this IServiceCollection services)
+    {
+        services.AddMediatR(cfg => 
+        {
+            cfg.RegisterServicesFromAssemblyContaining<CreateCustomerHandler>();
+            cfg.RegisterServicesFromAssemblyContaining<CreateProductHandler>();
+            cfg.RegisterServicesFromAssemblyContaining<CreateOrderHandler>();
+            cfg.RegisterServicesFromAssemblyContaining<RevenueByPeriodHandler>();
+        });
+        return services;
+    }
+
+    public static IServiceCollection AddCacheService(this IServiceCollection services)
+    {
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheBehavior<,>));
 
         return services;
     }

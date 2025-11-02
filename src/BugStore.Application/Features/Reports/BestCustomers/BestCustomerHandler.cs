@@ -1,10 +1,11 @@
 ﻿using BugStore.Application.Mappings.Reports;
 using BugStore.Domain.Common;
 using BugStore.Domain.Contracts.IRepositories;
+using MediatR;
 
 namespace BugStore.Application.Features.Reports.BestCustomers; 
 
-public class BestCustomerHandler
+public class BestCustomerHandler : IRequestHandler<BestCustomersRequest, PagedResponse<BestCustomersResponse>>
 {
     private readonly IReportsRepository _repository;
 
@@ -13,7 +14,7 @@ public class BestCustomerHandler
         _repository = repository;
     }
 
-    public async Task<PagedResponse<BestCustomersResponse>> HandleAsync(BestCustomersRequest request, CancellationToken cancellationToken)
+    public async Task<PagedResponse<BestCustomersResponse>> Handle(BestCustomersRequest request, CancellationToken cancellationToken)
     {
         var parameters = new BestCustomerParameters
         {
@@ -26,7 +27,6 @@ public class BestCustomerHandler
         var bestCustomerDto = await _repository
                                         .GetBestCustomerAsync(parameters, cancellationToken);
 
-        return ReportsMapping.ToPagedResponse(bestCustomerDto); 
+        return ReportsMapping.ToPagedResponse(bestCustomerDto);
     }
-
 }

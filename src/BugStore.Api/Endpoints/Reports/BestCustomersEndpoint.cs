@@ -1,6 +1,6 @@
 ﻿using BugStore.Application.Features.Reports.BestCustomers;
-using BugStore.Application.Features.Reports.RevenueByPeriod;
 using BugStore.Domain.Common;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BugStore.Api.Endpoints.Reports; 
@@ -17,10 +17,10 @@ public static  class BestCustomersEndpoint
     }
 
     static async Task<IResult> HandleAsync([AsParameters] BestCustomersRequest request,
-        [FromServices] BestCustomerHandler handler, 
+        [FromServices] ISender sender, 
         CancellationToken cancellationToken)
     {
-      var result = await handler.HandleAsync(request, cancellationToken); 
+      var result = await sender.Send(request, cancellationToken); 
       return Results.Ok(result);
     }
 }

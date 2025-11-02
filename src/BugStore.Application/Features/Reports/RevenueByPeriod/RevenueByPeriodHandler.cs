@@ -1,10 +1,11 @@
 ﻿using BugStore.Application.Mappings.Orders;
 using BugStore.Domain.Common;
 using BugStore.Domain.Contracts.IRepositories;
+using MediatR;
 
 namespace BugStore.Application.Features.Reports.RevenueByPeriod; 
 
-public class RevenueByPeriodHandler
+public class RevenueByPeriodHandler : IRequestHandler<RevenueByPeriodRequest, PagedResponse<RevenueByPeriodResponse>>
 {
     private readonly IReportsRepository _repository;
     public RevenueByPeriodHandler(IReportsRepository repository)
@@ -12,7 +13,7 @@ public class RevenueByPeriodHandler
         _repository = repository;
     }
 
-    public async Task<PagedResponse<RevenueByPeriodResponse>> HandleAsync(RevenueByPeriodRequest request, CancellationToken cancellationToken)
+    public async Task<PagedResponse<RevenueByPeriodResponse>> Handle(RevenueByPeriodRequest request, CancellationToken cancellationToken)
     {
          VerifyPeriod(request.StartPeriod, request.EndPeriod);
 
