@@ -6,7 +6,6 @@ using BugStore.Infrastructure.Data;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
-using System.Linq;
 
 namespace BugStore.Infrastructure.Repositories
 {
@@ -97,10 +96,9 @@ namespace BugStore.Infrastructure.Repositories
                             EXTRACT(YEAR FROM o.""CreatedAt"")::INTEGER AS ""Year"",
                             TO_CHAR(o.""CreatedAt"", 'Month') AS ""Month"",
                             COUNT(o.""Id"") AS ""TotalOrders"",
-                            CAST(SUM(ol.""Quantity"" * p.""Price"") AS DECIMAL(18,2)) AS ""TotalRevenue""
+                            CAST(SUM(ol.""Total"") AS DECIMAL(18,2)) AS ""TotalRevenue""
                         FROM public.""Orders"" o
                         INNER JOIN public.""OrderLines"" ol ON o.""Id"" = ol.""OrderId""
-                        INNER JOIN public.""Products"" p ON ol.""ProductId"" = p.""Id""
                         WHERE o.""CreatedAt"" BETWEEN @StartDate AND @EndDate
                         GROUP BY ""Year"", ""Month""
                         ORDER BY ""Year"", ""Month""
